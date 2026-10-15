@@ -1,0 +1,30 @@
+[
+    {
+        "timestamp": "2026-10-15T16:58:08.189001",
+        "market": "betsson.com",
+        "scenario": "Scenario 1 (Real Play)",
+        "status": "PASS",
+        "checks": {
+            "initial_balance": 100.0,
+            "wager": 2.0,
+            "payout": 0.0,
+            "final_balance": 98.0,
+            "currency": "EUR",
+            "spin_button_found": true,
+            "movement_detected": true
+        }
+    },
+    {
+        "timestamp": "2026-10-15T16:58:21.935831",
+        "market": "betsson.com",
+        "scenario": "Scenario 2 - Insufficient balance",
+        "status": "PASS",
+        "checks": {
+            "initial_balance": 0.0,
+            "final_balance": 0.0,
+            "currency_matches": true,
+            "error_message_detected": true,
+            "spin_rejected_no_movement": true
+        }
+    }
+]

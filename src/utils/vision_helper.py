@@ -4,8 +4,10 @@ import numpy as np
 
 # Ruta absoluta: desde src/utils sube a src y entra en assets
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Sube dos niveles hasta la raíz y entra en assets
 DEFAULT_TEMPLATE_PATH = os.path.normpath(
-    os.path.join(CURRENT_DIR, "..", "assets", "template_spin_arrows.png")
+    os.path.join(CURRENT_DIR, "..", "..", "assets", "template_spin_arrows.png")
 )
 
 def locate_spin_button(
