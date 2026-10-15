@@ -1,29 +1,31 @@
-import pytest
 import os
-import json
-from src.utils.ocr_helper import read_balance_from_crop
-from src.utils.math_checker import validate_spin_balance_rule
+import pytest
+from src.pages.betsson_page import BetssonAutomation
 
-# Cargar la configuración del mercado según la variable de entorno de GitHub Actions
-market_name = os.getenv("TARGET_MARKET", "betsson_com")
-config_path = f"config/{market_name}.json"
-
-with open(config_path, "r") as f:
-    config = json.load(f)
-
-def test_scenario_1_completed_real_play():
+def test_scenario_1_real_play_spin():
     """
-    Escenario 1: Tirada con saldo suficiente
-    Verifica que la tirada se ejecuta y se cumple la regla de balances
+    Test Escenario 1: Spin con dinero real y verificación de balances
     """
-    print(f"Ejecutando Escenario 1 para el mercado: {config['market']}")
-    # Aquí se invocarán las funciones que están desarrollando tus compañeros
-    assert True
+    market = os.getenv("TARGET_MARKET", "betsson_com")
+    user = os.getenv("BETSSON_USER", "")
+    password = os.getenv("BETSSON_PASS", "")
+    
+    print(f"\n--- Iniciando Escenario 1 en Mercado: {market} ---")
+    
+    automation = BetssonAutomation(target_market=market)
+    result = automation.run_scenario_1(user, password)
+    
+    assert result is True
 
 def test_scenario_2_insufficient_balance():
     """
-    Escenario 2: Intentar tirada con saldo insuficiente
-    Verifica que se rechaza la tirada y aparece el mensaje en el idioma correcto
+    Test Escenario 2: Intento de spin sin saldo
     """
-    print(f"Ejecutando Escenario 2 para el mercado: {config['market']}")
+    market = os.getenv("TARGET_MARKET", "betsson_com")
+    user = os.getenv("BETSSON_NOFUND_USER", "")
+    password = os.getenv("BETSSON_NOFUND_PASS", "")
+    
+    print(f"\n--- Iniciando Escenario 2 en Mercado: {market} ---")
+    
+    # Aquí llamaremos al flujo de saldo insuficiente
     assert True
