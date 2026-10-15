@@ -1,12 +1,10 @@
 import os
-# from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright
-from src.pages.lobby_page import LobbyPage, InsufficientFundsError
+from src.pages.lobby_page import LobbyPage
 from src.pages.game_page import GamePage
 
-# load_dotenv()
-
 with sync_playwright() as p:
+    # Flags para evitar detección de bots y bloqueos WAF
     browser = p.chromium.launch(
         headless=True,
         args=[
@@ -20,44 +18,39 @@ with sync_playwright() as p:
         user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
     )
     page = context.new_page()
+
+    # Ocultar webdriver
     page.add_init_script("delete Object.getPrototypeOf(navigator).webdriver")
 
-    # 1. Lobby: navegar y login con cuenta de saldo 0
+    # Inicializar Lobby (apunta por defecto a betsson.com)
     lobby = LobbyPage(page)
     lobby.navigate()
-    lobby.login(
-        username=os.getenv("BETSSON_NOFUND_USER"),
-        password=os.getenv("BETSSON_NOFUND_PASS")
-    )
+    lobby.login2()
+    
+    print("Balance Betsson:", lobby.get_betsson_balance_element())
 
-    try:
-        balance = lobby.get_betsson_balance_element()
-        print(f"Balance detectado en lobby: {balance}")
-    except Exception as e:
-        print(f"Aviso leyendo balance: {e}")
+    # Abre la slot de Pragmatic Play en .com
+    lobby.open_pragmatic_game("Gates of Olympus")
 
-    # 2. Intentar flujo de juego controlando la excepción esperada
+    # Módulo de control del canvas
     game = GamePage(page)
-    banner_detectado = False
+    game.wait_for_game_ready()
+    screenshot_path = game.take_game_screenshot("evidence/test_ready.png")
+    print(f"Captura del juego lista en: {screenshot_path}")
 
-    try:
-        print("Lanzando juego para verificar detección de saldo insuficiente...")
-        lobby.open_pragmatic_game("Gates of Olympus")
-        game.wait_for_game_ready()
-        game.click_spin()
+    # Simular giro
+    game.click_spin()
 
-    except InsufficientFundsError as e:
-        banner_detectado = True
-        print("\n" + "=" * 55)
-        print("✅ TEST SIN SALDO PASADO: Banner detectado correctamente")
-        print(f"Detalle: {e}")
-        print("=" * 55 + "\n")
+    # Validar que salta el aviso de saldo insuficiente y guardar captura
+    sin_saldo = game.verify_insufficient_funds_modal("evidence/test_sin_saldo.png")
 
-    except Exception as e:
-        print(f"❌ Falló por un error imprevisto: {e}")
+    # Espera visual antes de desmontar sesión
+    page.wait_for_timeout(20000)
+    browser.close()
 
-    if not banner_detectado:
-        print("⚠️ ALERTA: No se detectó ningún banner de saldo insuficiente.")
-
-    page.wait_for_timeout(2000)
+    # Aserción final del test
+    assert sin_saldo, "Fallo: No se mostró la alerta de saldo insuficiente tras pulsar el botón de giro."
+    
+    # Pausa de 5 segundos para que veas el resultado antes de cerrar
+    # page.wait_for_timeout(2000)
     browser.close()
