@@ -70,8 +70,13 @@ El login se hace en un contexto de navegador **sin grabar**; la sesión se trans
 que graba vídeo y trace. Las credenciales solo se leen de variables de entorno.
 
 
-## Nota del equipo
+## Nota del equipo (variables de entorno)
 
+Para que la ejecución sea notablemente más rapida y fluida se recomienda usar esta linea de codigo si es en local: 
+    $env:RECORD_VIDEO="0"
+    .\run_local.ps1
+
+## Nota del equipo (Github)
 Las pruebas de Actions de Github fallan debido a una no respuesta de los servidores en los que corren
 las máquinas de Github (EEUU), el timeout del script cancela la espera y por eso no genera un reporte satisfactorio.
 En local, con los pasos detallados arriba, sí funciona y genera unos reportes satisfactorios acordes a lo requerido.
