@@ -1,74 +1,79 @@
 import sys
 from pathlib import Path
 
-# 1. Definición de rutas del proyecto
+# Configuración dinámica de rutas
 SRC_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SRC_DIR.parent
-SCREENSHOTS_DIR = PROJECT_ROOT / "screenshots"
-
-# Añade la raíz del repositorio al path de Python dinámicamente
 sys.path.append(str(PROJECT_ROOT))
 
 from src.utils.ocr_helper import read_financial_zone
-from src.utils.vision_helper import verify_spin_movement
+from src.utils.vision_helper import (
+    get_dynamic_crop_roi, 
+    verify_spin_movement, 
+    generate_debug_image
+)
 from src.utils.math_checker import validate_spin_scenario
 
-# Constantes de recorte para 1920x1080 (provisionales hasta calibrar con la foto real)
-CROP_BETSSON_BALANCE = (15, 55, 1120, 1300)
-CROP_GAME_CREDIT     = (870, 915, 160, 350)
-CROP_GAME_WAGER      = (915, 955, 160, 350)
-CROP_GAME_WIN        = (915, 955, 400, 600)
+# Definición de rutas a plantillas y capturas
+TEMPLATES_DIR = PROJECT_ROOT / "templates"
+SCREENSHOTS_DIR = PROJECT_ROOT / "screenshots"
 
+TPL_BALANCE = str(TEMPLATES_DIR / "label_balance.png")
+TPL_WAGER   = str(TEMPLATES_DIR / "label_wager.png")
+TPL_WIN     = str(TEMPLATES_DIR / "label_win.png")
 
-def execute_spin_validation(image_before_path: str, image_after_path: str) -> bool:
-    """
-    Orchestrates the entire end-to-end verification process for a single spin cycle.
-    
-    Args:
-        image_before_path (str): Path to the screenshot taken before initiating the spin.
-        image_after_path (str): Path to the screenshot taken after the spin finishes.
-        
-    Returns:
-        bool: True if movement is confirmed and financial balance reconciles, False otherwise.
-    """
+# Fallbacks: coordenadas manuales por si OpenCV no encuentra la plantilla
+FB_BALANCE = (870, 915, 160, 350)
+FB_WAGER   = (915, 955, 160, 350)
+FB_WIN     = (915, 955, 400, 600)
+
+def execute_spin_validation(image_before_path: str, image_after_path: str, debug_mode: bool = True) -> bool:
     is_test_successful = False
     
-    # 1. Lectura del estado financiero inicial mediante OCR
-    initial_balance = read_financial_zone(image_before_path, CROP_GAME_CREDIT)
-    wager_amount = read_financial_zone(image_before_path, CROP_GAME_WAGER)
+    # 1. ESCANEO DINÁMICO: Buscar las zonas a leer en la pantalla
+    # Buscamos a 10 píxeles a la derecha (offset_x) de la etiqueta. Caja de 150x40 px.
+    roi_balance = get_dynamic_crop_roi(image_before_path, TPL_BALANCE, offset_x=10, roi_w=150) or FB_BALANCE
+    roi_wager   = get_dynamic_crop_roi(image_before_path, TPL_WAGER, offset_x=10, roi_w=150) or FB_WAGER
+    roi_win     = get_dynamic_crop_roi(image_after_path, TPL_WIN, offset_x=10, roi_w=150) or FB_WIN
+
+    if debug_mode:
+        generate_debug_image(image_before_path, {
+            "SALDO DETECTADO": roi_balance,
+            "APUESTA DETECTADA": roi_wager,
+            "PREMIO DETECTADO": roi_win
+        })
+
+    # 2. LECTURA FINANCIERA INICIAL (OCR)
+    initial_balance = read_financial_zone(image_before_path, roi_balance)
+    wager_amount = read_financial_zone(image_before_path, roi_wager)
     
-    # Guardia de negocio: Verificar saldo suficiente antes de girar
+    # 3. CONTROL DE NEGOCIO: Saldo insuficiente
     if initial_balance < wager_amount:
-        print(f"ERROR: Saldo insuficiente ({initial_balance} €) para la apuesta ({wager_amount} €).")
-        return is_test_successful
-    
-    # 2. Verificación de movimiento de rodillos por matriz de diferencia
-    has_reels_moved = verify_spin_movement(image_before_path, image_after_path)
-    
-    if has_reels_moved:
-        # 3. Lectura del estado financiero final y del premio mediante OCR
-        final_balance = read_financial_zone(image_after_path, CROP_GAME_CREDIT)
-        detected_payout = read_financial_zone(image_after_path, CROP_GAME_WIN)
+        print(f"ERROR: Saldo ({initial_balance} €) insuficiente para la apuesta ({wager_amount} €).")
+        return False
         
-        # 4. Aserción matemática de la regla de casino
+    # 4. COMPROBACIÓN FÍSICA: ¿Giró la máquina?
+    if verify_spin_movement(image_before_path, image_after_path):
+        
+        # 5. LECTURA FINANCIERA FINAL (OCR)
+        final_balance = read_financial_zone(image_after_path, roi_balance)
+        detected_payout = read_financial_zone(image_after_path, roi_win)
+        
+        # 6. ASERCIÓN MATEMÁTICA: ¿Nos han engañado?
         math_valid = validate_spin_scenario(
             initial_balance=initial_balance,
             wager=wager_amount,
             payout=detected_payout,
             final_balance=final_balance
         )
-        
         is_test_successful = math_valid
     else:
-        print("Error: Visual verification failed. The game reels did not rotate.")
+        print("ERROR VISUAL: Los rodillos no giraron o el juego se quedó colgado.")
         
     return is_test_successful
 
-
 if __name__ == "__main__":
-    # Prueba rápida buscando las imágenes en la carpeta screenshots/ de la raíz
-    path_before = str(SCREENSHOTS_DIR / "captura_antes.png")
-    path_after = str(SCREENSHOTS_DIR / "captura_despues.png")
-    
-    result = execute_spin_validation(path_before, path_after)
-    print(f"Pipeline Test Execution Result: {result}")
+    path_antes = str(SCREENSHOTS_DIR / "captura_antes.png")
+    path_despues = str(SCREENSHOTS_DIR / "captura_despues.png")
+    resultado = execute_spin_validation(path_antes, path_despues, debug_mode=True)
+    print(f"Test superado: {resultado}")
