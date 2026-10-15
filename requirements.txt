@@ -1,6 +1,9 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+torchvision
+easyocr==1.7.1
 playwright==1.42.0
 pytest==8.1.1
 pytest-html==4.1.1
-easyocr==1.7.1
 opencv-python-headless==4.9.0.80
 pillow==10.2.0
