@@ -1,0 +1,51 @@
+name: Betsson Intelligent Game Validation CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright/python:v1.42.0-jammy # Imagen oficial con dependencias ya listas
+    strategy:
+      matrix:
+        market: [betsson_com, betsson_pe]
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install System Dependencies (Tesseract OCR)
+        run: |
+          apt-get update
+          apt-get install -y tesseract-ocr tesseract-ocr-spa tesseract-ocr-eng
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Execute Tests for ${{ matrix.market }}
+        env:
+          TARGET_MARKET: ${{ matrix.market }}
+          BETSSON_USER: ${{ matrix.market == 'betsson_com' && secrets.BETSSON_COM_USER || secrets.BETSSON_PE_USER }}
+          BETSSON_PASS: ${{ matrix.market == 'betsson_com' && secrets.BETSSON_COM_PASS || secrets.BETSSON_PE_PASS }}
+          BETSSON_NOFUND_USER: ${{ matrix.market == 'betsson_com' && secrets.BETSSON_COM_NOFUND_USER || secrets.BETSSON_PE_NOFUND_USER }}
+          BETSSON_NOFUND_PASS: ${{ matrix.market == 'betsson_com' && secrets.BETSSON_COM_NOFUND_PASS || secrets.BETSSON_PE_NOFUND_PASS }}
+        run: |
+          python -m pytest --html=report_${{ matrix.market }}.html --self-contained-html || true
+
+      - name: Upload Test Report & Screenshots Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: report-${{ matrix.market }}
+          path: |
+            report_*.html
+            screenshots/
+            videos/
