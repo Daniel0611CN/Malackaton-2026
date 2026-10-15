@@ -1,0 +1,53 @@
+{
+  "market": "betsson_com",
+  "label": "betsson.com",
+  "url": "https://www.betsson.com",
+  "currency": "EUR",
+  "language": "en",
+  "locale": "en-GB",
+  "game_name": "Gates Of Olympus POP",
+  "provider_paths": [
+    "/casino/providers/pragmatic-play",
+    "/casino/proveedores/pragmatic-play"
+  ],
+  "credentials_env": {
+    "funded": {
+      "user": "BETSSON_COM_USER",
+      "password": "BETSSON_COM_PASS"
+    },
+    "no_funds": {
+      "user": "BETSSON_COM_NOFUND_USER",
+      "password": "BETSSON_COM_NOFUND_PASS"
+    }
+  },
+  "hud_labels": {
+    "credit": [
+      "CREDIT",
+      "BALANCE",
+      "CRÉDITO",
+      "CREDITO"
+    ],
+    "bet": [
+      "BET",
+      "APUESTA"
+    ],
+    "win": [
+      "WIN",
+      "GANANCIA"
+    ]
+  },
+  "insufficient_keywords_by_language": {
+    "en": [
+      "insufficient",
+      "not enough",
+      "no funds",
+      "low balance"
+    ],
+    "es": [
+      "insuficiente",
+      "no tienes saldo",
+      "sin saldo",
+      "saldo suficiente"
+    ]
+  }
+}

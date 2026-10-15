@@ -1,0 +1,103 @@
+name: Betsson Intelligent Game Validation CI
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+  workflow_dispatch:                 # Permite lanzarlo a mano desde la pestaña Actions
+
+# Las cuentas de prueba son reales: nunca dos ejecuciones a la vez sobre las mismas cuentas
+concurrency:
+  group: betsson-e2e
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    name: Escenarios ${{ matrix.market }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    container:
+      image: mcr.microsoft.com/playwright/python:v1.59.0-jammy # Imagen oficial con Chromium y dependencias
+      options: --ipc=host
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [betsson_com]
+    env:
+      TARGET_MARKET: ${{ matrix.market }}
+      HEADLESS: "0"                  # Navegador "con cabeza" dentro de xvfb: menos bloqueos anti-bot
+      RECORD_VIDEO: "1"
+      BETSSON_COM_USER: ${{ secrets.BETSSON_COM_USER }}
+      BETSSON_COM_PASS: ${{ secrets.BETSSON_COM_PASS }}
+      BETSSON_COM_NOFUND_USER: ${{ secrets.BETSSON_COM_NOFUND_USER }}
+      BETSSON_COM_NOFUND_PASS: ${{ secrets.BETSSON_COM_NOFUND_PASS }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Cache EasyOCR models
+        uses: actions/cache@v4
+        with:
+          path: ~/.EasyOCR
+          key: easyocr-en-es-v1
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ hashFiles('requirements.txt') }}
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Scenario 1 + Scenario 2 (${{ matrix.market }})
+        run: |
+          mkdir -p reports/${{ matrix.market }}
+          xvfb-run -a python -m pytest \
+            --html=reports/${{ matrix.market }}/pytest-report.html --self-contained-html \
+            --junitxml=reports/${{ matrix.market }}/junit.xml
+
+      - name: Build market report
+        if: always()
+        run: python scripts/build_report.py reports/${{ matrix.market }} --title "Betsson · ${{ matrix.market }}" --summary
+
+      - name: Upload report & evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: informe-${{ matrix.market }}
+          path: reports/${{ matrix.market }}
+          retention-days: 14
+
+  report:
+    name: Informe combinado
+    needs: e2e
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Download market reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: informe-*
+          path: reports
+
+      - name: Build combined report
+        run: python scripts/build_report.py reports --title "Betsson · Intelligent Game Validation" --summary
+
+      - name: Upload combined report
+        uses: actions/upload-artifact@v4
+        with:
+          name: informe-completo
+          path: reports
+          retention-days: 30
