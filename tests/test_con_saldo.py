@@ -1,10 +1,10 @@
 import os
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright
 from src.pages.lobby_page import LobbyPage
 from src.pages.game_page import GamePage
 
-load_dotenv()
+# load_dotenv()
 
 with sync_playwright() as p:
     browser = p.chromium.launch(

@@ -240,10 +240,10 @@
 #         print(f"Lanzando '{game_name}'...")
 
 import os
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from playwright.sync_api import Page, TimeoutError
 
-load_dotenv()
+# load_dotenv()
 
 
 class InsufficientFundsError(Exception):
