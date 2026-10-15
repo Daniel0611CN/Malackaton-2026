@@ -1,6 +1,6 @@
 import os
 import pytest
-from src.pages.betsson_page import BetssonAutomation
+from src.pages.lobby_page import LobbyPage
 
 def test_scenario_1_real_play_spin():
     """
