@@ -1,1 +1,0 @@
-type nul > src\__init__.py
