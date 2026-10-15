@@ -1,0 +1,7 @@
+{
+  "market": "betsson_com",
+  "url": "https://www.betsson.com",
+  "currency": "EUR",
+  "language": "en",
+  "error_keywords": ["insufficient", "balance", "funds", "deposit"]
+}
