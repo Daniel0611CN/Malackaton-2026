@@ -1,0 +1,7 @@
+{
+  "market": "betsson_pe",
+  "url": "https://www.betsson.pe",
+  "currency": "PEN",
+  "language": "es",
+  "error_keywords": ["insuficiente", "saldo", "fondos", "depositar"]
+}
