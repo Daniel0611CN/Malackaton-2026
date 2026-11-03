@@ -8,6 +8,17 @@ from src.utils.ocr_helper import parse_numeric_and_currency
 
 
 class LobbyPage:
+    LOGIN_BUTTON_SELECTORS = [
+        "[data-test-id='login-button']",
+        "button:has-text('Log in')",
+        "button:has-text('Sign in')",
+        "button:has-text('Iniciar sesión')",
+        "a:has-text('Log in')",
+        "a:has-text('Sign in')",
+        "a:has-text('Iniciar sesión')",
+        "a[href*='login']",
+    ]
+
     def __init__(self, page: Page, config: Dict[str, Any], evidence_dir: str = "evidence"):
         self.page = page
         self.config = config
@@ -60,9 +71,12 @@ class LobbyPage:
 
     def is_logged_in(self) -> bool:
         try:
-            return not self.page.locator("[data-test-id='login-button']").first.is_visible(timeout=3000)
+            return not self._login_button_locator().is_visible(timeout=3000)
         except Exception:
             return False
+
+    def _login_button_locator(self) -> Locator:
+        return self.page.locator(", ".join(self.LOGIN_BUTTON_SELECTORS)).first
 
     def login(self, username: str, password: str):
         """Inicia sesión interactuando como un usuario real (cuenta con o sin saldo)."""
@@ -71,9 +85,9 @@ class LobbyPage:
 
         self.handle_popups()
 
-        # 1. Click en el botón Iniciar sesión usando data-test-id
-        login_btn = self.page.locator("[data-test-id='login-button']").first
-        login_btn.wait_for(state="visible", timeout=15000)
+        # 1. Click en el botón Iniciar sesión
+        login_btn = self._login_button_locator()
+        login_btn.wait_for(state="visible", timeout=25000)
         login_btn.click()
 
         # 2. Esperar a que la página cambie a la pantalla de login o abra el modal
@@ -167,7 +181,7 @@ class LobbyPage:
         Devuelve {"raw_text", "value", "currency"} y guarda una captura del header como evidencia.
         """
         try:
-            self.page.locator("[data-test-id='login-button']").first.wait_for(state="hidden", timeout=5000)
+            self._login_button_locator().wait_for(state="hidden", timeout=5000)
         except Exception:
             pass
 
