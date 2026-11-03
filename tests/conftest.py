@@ -32,6 +32,23 @@ def _env_flag(name: str, default: str = "1") -> bool:
     return os.getenv(name, default).strip().lower() not in ("0", "false", "no", "")
 
 
+def _proxy_settings():
+    """
+    Proxy opcional (PROXY_SERVER, PROXY_USERNAME, PROXY_PASSWORD). Útil en GitHub Actions: los runners
+    están en EE. UU. y Betsson puede no responder a esas IPs; con un proxy en España sí.
+    Si PROXY_SERVER está vacío o no existe, no se usa proxy.
+    """
+    server = os.getenv("PROXY_SERVER", "").strip()
+    if not server:
+        return None
+    proxy = {"server": server}
+    if os.getenv("PROXY_USERNAME"):
+        proxy["username"] = os.getenv("PROXY_USERNAME")
+    if os.getenv("PROXY_PASSWORD"):
+        proxy["password"] = os.getenv("PROXY_PASSWORD")
+    return proxy
+
+
 @pytest.fixture(scope="session")
 def market_config():
     return load_market_config()
@@ -48,7 +65,8 @@ def market_dir(market_config):
 def browser():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=_env_flag("HEADLESS", "1"), args=LAUNCH_ARGS,
-                                    executable_path=os.getenv("CHROMIUM_PATH") or None)
+                                    executable_path=os.getenv("CHROMIUM_PATH") or None,
+                                    proxy=_proxy_settings())
         yield browser
         browser.close()
 

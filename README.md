@@ -76,7 +76,18 @@ Para que la ejecución sea notablemente más rapida y fluida se recomienda usar 
     $env:RECORD_VIDEO="0"
     .\run_local.ps1
 
-## Nota del equipo (Github)
-Las pruebas de Actions de Github fallan debido a una no respuesta de los servidores en los que corren
-las máquinas de Github (EEUU), el timeout del script cancela la espera y por eso no genera un reporte satisfactorio.
-En local, con los pasos detallados arriba, sí funciona y genera unos reportes satisfactorios acordes a lo requerido.
+## Nota del equipo (GitHub Actions)
+Los runners de GitHub están en EE. UU. y Betsson puede no responder a esas IPs: la navegación se
+queda esperando, salta el timeout y no se genera un informe satisfactorio. En local, con los pasos
+detallados arriba, sí funciona.
+
+Para que el CI no dependa de eso:
+
+- El paso **Diagnóstico de red** del workflow muestra si `betsson.com` responde desde el runner.
+- `LobbyPage.navigate()` reintenta 3 veces y, si el sitio no carga o muestra un bloqueo, falla con
+  un mensaje claro (y captura `debug_navigate_failed.png`) en vez de colgarse.
+- El paso de tests tiene su propio timeout (30 min) para que el informe se genere siempre.
+- Proxy opcional: define los secrets `PROXY_SERVER` (p. ej. `http://host:puerto`),
+  `PROXY_USERNAME` y `PROXY_PASSWORD` con un proxy en España y el navegador lo usará.
+  También funciona en local con esas variables de entorno.
+- Alternativa: ejecutar el workflow en un runner **self-hosted** ubicado en España.

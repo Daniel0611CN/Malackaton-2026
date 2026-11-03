@@ -28,15 +28,16 @@ def execute_spin_validation(image_before_path: str, image_after_path: str, expec
     is_test_successful = False
     
     # 1. Lectura del estado financiero inicial
-    initial_balance = read_financial_zone(image_before_path, CROP_GAME_CREDIT)
-    wager_amount = read_financial_zone(image_before_path, CROP_GAME_WAGER)
+    # read_financial_zone devuelve un dict {"value", "currency", "raw_text"}: nos quedamos con el número
+    initial_balance = read_financial_zone(image_before_path, CROP_GAME_CREDIT)["value"]
+    wager_amount = read_financial_zone(image_before_path, CROP_GAME_WAGER)["value"]
     
     # 2. Verificación de movimiento de rodillos por matriz
     has_reels_moved = verify_spin_movement(image_before_path, image_after_path)
     
     if has_reels_moved:
         # 3. Lectura del estado financiero final
-        final_balance = read_financial_zone(image_after_path, CROP_GAME_CREDIT)
+        final_balance = read_financial_zone(image_after_path, CROP_GAME_CREDIT)["value"]
         
         # 4. Aserción matemática de la regla de casino
         math_valid = validate_spin_scenario(

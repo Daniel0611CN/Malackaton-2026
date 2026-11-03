@@ -8,17 +8,6 @@ from src.utils.ocr_helper import parse_numeric_and_currency
 
 
 class LobbyPage:
-    LOGIN_BUTTON_SELECTORS = [
-        "[data-test-id='login-button']",
-        "button:has-text('Log in')",
-        "button:has-text('Sign in')",
-        "button:has-text('Iniciar sesión')",
-        "a:has-text('Log in')",
-        "a:has-text('Sign in')",
-        "a:has-text('Iniciar sesión')",
-        "a[href*='login']",
-    ]
-
     def __init__(self, page: Page, config: Dict[str, Any], evidence_dir: str = "evidence"):
         self.page = page
         self.config = config
@@ -31,9 +20,46 @@ class LobbyPage:
         self.page.screenshot(path=path)
         return path
 
-    def navigate(self):
-        """Abre la página principal y descarta pop-ups."""
-        self.page.goto(self.base_url, wait_until="domcontentloaded")
+    BLOCK_MARKERS = ("access denied", "just a moment", "attention required", "request blocked",
+                     "forbidden", "not available in your", "403 error")
+
+    def _looks_blocked(self) -> bool:
+        """Páginas típicas de WAF/geobloqueo: el título o el texto visible lo delatan."""
+        try:
+            title = (self.page.title() or "").lower()
+            body = (self.page.inner_text("body", timeout=2000) or "")[:400].lower()
+        except Exception:
+            return False
+        return any(m in title or m in body for m in self.BLOCK_MARKERS)
+
+    def navigate(self, attempts: int = 3, timeout_ms: int = 45000):
+        """
+        Abre la página principal y descarta pop-ups. Reintenta si la red no responde y, si tras
+        los reintentos el sitio sigue sin cargar o muestra un bloqueo, falla con un mensaje claro
+        (en GitHub Actions las IPs de EE. UU. pueden no recibir respuesta: ver README, PROXY_SERVER).
+        """
+        last_error = None
+        for attempt in range(1, attempts + 1):
+            try:
+                self.page.goto(self.base_url, wait_until="domcontentloaded", timeout=timeout_ms)
+                if self._looks_blocked():
+                    raise RuntimeError("La página parece un bloqueo (WAF/geobloqueo)")
+                last_error = None
+                break
+            except Exception as e:
+                last_error = e
+                print(f"[NAVEGACIÓN] Intento {attempt}/{attempts} fallido para {self.base_url}: {e}")
+                self.page.wait_for_timeout(3000 * attempt)
+        if last_error is not None:
+            try:
+                self._debug_screenshot("navigate_failed")
+            except Exception:
+                pass
+            raise RuntimeError(
+                f"No se pudo abrir {self.base_url} tras {attempts} intentos ({last_error}). "
+                f"Si es CI, el sitio puede no responder a las IPs del runner: usa PROXY_SERVER "
+                f"o un runner self-hosted en España."
+            ) from last_error
         self.page.wait_for_timeout(2000)
         self.handle_popups()
 
@@ -71,12 +97,9 @@ class LobbyPage:
 
     def is_logged_in(self) -> bool:
         try:
-            return not self._login_button_locator().is_visible(timeout=3000)
+            return not self.page.locator("[data-test-id='login-button']").first.is_visible(timeout=3000)
         except Exception:
             return False
-
-    def _login_button_locator(self) -> Locator:
-        return self.page.locator(", ".join(self.LOGIN_BUTTON_SELECTORS)).first
 
     def login(self, username: str, password: str):
         """Inicia sesión interactuando como un usuario real (cuenta con o sin saldo)."""
@@ -85,9 +108,9 @@ class LobbyPage:
 
         self.handle_popups()
 
-        # 1. Click en el botón Iniciar sesión
-        login_btn = self._login_button_locator()
-        login_btn.wait_for(state="visible", timeout=25000)
+        # 1. Click en el botón Iniciar sesión usando data-test-id
+        login_btn = self.page.locator("[data-test-id='login-button']").first
+        login_btn.wait_for(state="visible", timeout=15000)
         login_btn.click()
 
         # 2. Esperar a que la página cambie a la pantalla de login o abra el modal
@@ -181,7 +204,7 @@ class LobbyPage:
         Devuelve {"raw_text", "value", "currency"} y guarda una captura del header como evidencia.
         """
         try:
-            self._login_button_locator().wait_for(state="hidden", timeout=5000)
+            self.page.locator("[data-test-id='login-button']").first.wait_for(state="hidden", timeout=5000)
         except Exception:
             pass
 

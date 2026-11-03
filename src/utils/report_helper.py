@@ -245,6 +245,11 @@ def build_html_report(results_dir: str, output_path: Optional[str] = None, title
     return output_path
 
 
+def _md(value: Any) -> str:
+    """Escapa '|' y saltos de línea para que el texto del OCR no rompa la tabla Markdown."""
+    return str(value).replace("|", "\\|").replace("\r", " ").replace("\n", " ")
+
+
 def build_markdown_summary(results_dir: str) -> str:
     """Tabla Markdown para $GITHUB_STEP_SUMMARY."""
     rows = ["| Mercado | Escenario | Check | Resultado | Esperado | Observado |", "|---|---|---|---|---|---|"]
@@ -254,9 +259,9 @@ def build_markdown_summary(results_dir: str) -> str:
                 with open(os.path.join(root, name), encoding="utf-8") as f:
                     r = json.load(f)
                 if r.get("error"):
-                    rows.append(f"| {r['market_label']} | {r['scenario']} | Ejecución | ❌ FAIL | — | {str(r['error'])[:120]} |")
+                    rows.append(f"| {r['market_label']} | {r['scenario']} | Ejecución | ❌ FAIL | — | {_md(str(r['error'])[:120])} |")
                 for c in r["checks"]:
                     icon = "✅" if c["status"] == "PASS" else "❌"
                     rows.append(f"| {r['market_label']} | {r['scenario']} | {c['name']} | {icon} {c['status']} "
-                                f"| {c['expected']} | {c['observed']} |")
+                                f"| {_md(c['expected'])} | {_md(c['observed'])} |")
     return "\n".join(rows)

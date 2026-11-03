@@ -32,6 +32,10 @@ jobs:
       BETSSON_COM_PASS: ${{ secrets.BETSSON_COM_PASS }}
       BETSSON_COM_NOFUND_USER: ${{ secrets.BETSSON_COM_NOFUND_USER }}
       BETSSON_COM_NOFUND_PASS: ${{ secrets.BETSSON_COM_NOFUND_PASS }}
+      # Opcionales: proxy en España si Betsson no responde a las IPs de EE. UU. de los runners
+      PROXY_SERVER: ${{ secrets.PROXY_SERVER }}
+      PROXY_USERNAME: ${{ secrets.PROXY_USERNAME }}
+      PROXY_PASSWORD: ${{ secrets.PROXY_PASSWORD }}
 
     steps:
       - name: Checkout repo
@@ -54,7 +58,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Diagnóstico de red (no bloquea)
+        continue-on-error: true
+        run: |
+          curl -sS -o /dev/null --max-time 20 -w "betsson.com -> HTTP %{http_code} en %{time_total}s\n" https://www.betsson.com || echo "betsson.com no responde desde este runner"
+
       - name: Run Scenario 1 + Scenario 2 (${{ matrix.market }})
+        # Timeout por paso (< timeout del job) para que los pasos de informe siempre tengan tiempo de ejecutarse
+        timeout-minutes: 30
         run: |
           mkdir -p reports/${{ matrix.market }}
           xvfb-run -a python -m pytest \
