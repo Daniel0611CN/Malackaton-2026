@@ -110,7 +110,24 @@ class LobbyPage:
 
         # 1. Click en el botón Iniciar sesión usando data-test-id
         login_btn = self.page.locator("[data-test-id='login-button']").first
-        login_btn.wait_for(state="visible", timeout=15000)
+        try:
+            login_btn.wait_for(state="visible", timeout=15000)
+        except Exception as e:
+            # Diagnóstico: qué está viendo realmente el navegador (redirección, bloqueo por país, otro layout...)
+            try:
+                title = self.page.title()
+                body = " ".join(self.page.inner_text("body", timeout=3000).split())[:300]
+            except Exception:
+                title, body = "?", "?"
+            shot = ""
+            try:
+                shot = self._debug_screenshot("login_button_missing")
+            except Exception:
+                pass
+            raise RuntimeError(
+                f"No aparece el botón de login. URL={self.page.url} | título='{title}' | "
+                f"texto='{body}' | captura={shot}"
+            ) from e
         login_btn.click()
 
         # 2. Esperar a que la página cambie a la pantalla de login o abra el modal
