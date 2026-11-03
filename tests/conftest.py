@@ -11,7 +11,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.config import load_market_config, get_credentials  # noqa: E402
-from src.pages.lobby_page import LobbyPage  # noqa: E402
+from src.pages.lobby_page import LobbyPage, SiteAccessBlockedError  # noqa: E402
 from src.utils.report_helper import ScenarioReport, REPORTS_DIR  # noqa: E402
 
 VIEWPORT = {"width": 1920, "height": 1080}
@@ -97,8 +97,12 @@ def open_session(browser, market_config, scenario_report):
         login_ctx = _new_context(browser, locale=locale)
         login_page = login_ctx.new_page()
         login_lobby = LobbyPage(login_page, market_config, evidence_dir)
-        login_lobby.navigate()
-        login_lobby.login(user, password)
+        try:
+            login_lobby.navigate()
+            login_lobby.login(user, password)
+        except SiteAccessBlockedError as exc:
+            login_ctx.close()
+            pytest.skip(f"Sitio externo no accesible desde este entorno: {exc}")
         state = login_ctx.storage_state()
         login_ctx.close()
 

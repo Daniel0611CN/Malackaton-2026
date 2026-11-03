@@ -7,6 +7,10 @@ from playwright.sync_api import Locator, Page
 from src.utils.ocr_helper import parse_numeric_and_currency
 
 
+class SiteAccessBlockedError(RuntimeError):
+    """El sitio de destino no permite el acceso desde el entorno actual."""
+
+
 class LobbyPage:
     def __init__(self, page: Page, config: Dict[str, Any], evidence_dir: str = "evidence"):
         self.page = page
@@ -21,7 +25,8 @@ class LobbyPage:
         return path
 
     BLOCK_MARKERS = ("access denied", "just a moment", "attention required", "request blocked",
-                     "forbidden", "not available in your", "403 error")
+                     "forbidden", "not available in your", "403 error", "country-blocked",
+                     "due to the new laws governing online games")
 
     def _looks_blocked(self) -> bool:
         """Páginas típicas de WAF/geobloqueo: el título o el texto visible lo delatan."""
@@ -43,9 +48,18 @@ class LobbyPage:
             try:
                 self.page.goto(self.base_url, wait_until="domcontentloaded", timeout=timeout_ms)
                 if self._looks_blocked():
-                    raise RuntimeError("La página parece un bloqueo (WAF/geobloqueo)")
+                    raise SiteAccessBlockedError(
+                        f"Acceso bloqueado por el sitio (WAF/georrestricción): {self.page.url}"
+                    )
                 last_error = None
                 break
+            except SiteAccessBlockedError:
+                # Un bloqueo no se resuelve repitiendo la misma petición.
+                try:
+                    self._debug_screenshot("site_access_blocked")
+                except Exception:
+                    pass
+                raise
             except Exception as e:
                 last_error = e
                 print(f"[NAVEGACIÓN] Intento {attempt}/{attempts} fallido para {self.base_url}: {e}")
@@ -113,6 +127,11 @@ class LobbyPage:
         try:
             login_btn.wait_for(state="visible", timeout=15000)
         except Exception as e:
+            if self._looks_blocked() or "country-blocked.html" in self.page.url.lower():
+                raise SiteAccessBlockedError(
+                    "El sitio ha mostrado una página de bloqueo (403/georrestricción). "
+                    f"No se puede iniciar sesión desde este entorno. URL={self.page.url}"
+                ) from e
             # Diagnóstico: qué está viendo realmente el navegador (redirección, bloqueo por país, otro layout...)
             try:
                 title = self.page.title()

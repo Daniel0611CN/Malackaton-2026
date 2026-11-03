@@ -91,3 +91,14 @@ Para que el CI no dependa de eso:
   `PROXY_USERNAME` y `PROXY_PASSWORD` con un proxy en España y el navegador lo usará.
   También funciona en local con esas variables de entorno.
 - Alternativa: ejecutar el workflow en un runner **self-hosted** ubicado en España.
+
+
+## Acceso bloqueado (403 / georrestricción)
+
+Si el sitio devuelve `country-blocked.html`, `403 – Not Available` o un mensaje de
+indisponibilidad por país, las pruebas E2E del sitio real se marcan como **SKIPPED**
+con el motivo explícito. No se reintenta indefinidamente ni se presenta el bloqueo como
+un fallo del selector de login. Esto no elimina ni evita las restricciones del operador:
+ejecuta las pruebas reales únicamente desde un entorno y mercado autorizado. Para validar
+la lógica de los escenarios sin depender de la disponibilidad externa, utiliza un entorno
+de pruebas/mock autorizado.
